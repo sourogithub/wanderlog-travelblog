@@ -1,0 +1,8 @@
+{
+  "name": "WanderLog",
+  "description": "A premium social travel platform for sharing verified travel stories, connecting with explorers, and discovering authentic destinations.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ]
+}
