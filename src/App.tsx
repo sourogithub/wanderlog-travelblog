@@ -23,12 +23,7 @@ import {
   getRedirectResult,
   User as FirebaseUser
 } from 'firebase/auth';
-import { 
-  ref, 
-  uploadBytesResumable, 
-  getDownloadURL 
-} from 'firebase/storage';
-import { db, auth, storage } from './firebase';
+import { db, auth } from './firebase';
 import { handleFirestoreError, OperationType } from './utils/firestoreErrorHandler';
 import { 
   MapPin, 
@@ -257,7 +252,7 @@ const PostCard = ({ post, onReact, onComment, isAdmin, onVerify, onReject }: {
     >
       <div className="relative aspect-[16/10] overflow-hidden">
         <img 
-          src={post.images[0] || `https://picsum.photos/seed/${post.id}/800/500`} 
+          src={(Array.isArray(post.images) && post.images.length > 0) ? post.images[0] : ''} 
           alt={post.title} 
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
           referrerPolicy="no-referrer"
@@ -282,7 +277,12 @@ const PostCard = ({ post, onReact, onComment, isAdmin, onVerify, onReject }: {
         </div>
         <div className="absolute bottom-4 left-4 right-4 flex justify-between items-end">
           <div className="flex items-center gap-2 bg-black/20 backdrop-blur-md p-1.5 pr-4 rounded-full text-white">
-            <img src={post.authorPhoto || ''} alt="" className="w-8 h-8 rounded-full border border-white/20" />
+            <img 
+              src={post.authorPhoto || ''} 
+              alt="" 
+              className="w-8 h-8 rounded-full border border-white/20" 
+              referrerPolicy="no-referrer"
+            />
             <span className="text-sm font-medium">{post.authorName}</span>
           </div>
         </div>
@@ -347,7 +347,12 @@ const PostCard = ({ post, onReact, onComment, isAdmin, onVerify, onReject }: {
               <div className="max-h-40 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
                 {comments.map(c => (
                   <div key={c.id} className="flex gap-3">
-                    <img src={c.authorPhoto || ''} alt="" className="w-6 h-6 rounded-full flex-shrink-0" />
+                    <img 
+                      src={c.authorPhoto || ''} 
+                      alt="" 
+                      className="w-6 h-6 rounded-full flex-shrink-0" 
+                      referrerPolicy="no-referrer"
+                    />
                     <div className="bg-slate-50 rounded-2xl px-3 py-2 flex-1">
                       <p className="text-xs font-bold text-slate-900">{c.authorName}</p>
                       <p className="text-xs text-slate-600">{c.text}</p>
@@ -701,36 +706,33 @@ export default function App() {
   const handleCreatePost = async (data: any, files: File[]) => {
     if (!user) return;
     
+    // Cloudinary Configuration
+    const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'dzdfswnhv';
+    const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || 'ptqalwe1';
+    
     try {
-      // Upload images first with a robust timeout and progress tracking
+      setLoading(true);
+      // Upload images to Cloudinary
       const uploadPromises = files.map(async (file) => {
-        const storageRef = ref(storage, `posts/${user.uid}/${Date.now()}-${file.name}`);
-        
-        return new Promise<string>((resolve, reject) => {
-          const uploadTask = uploadBytesResumable(storageRef, file);
-          
-          // Set a generous 120-second timeout
-          const timeoutId = setTimeout(() => {
-            uploadTask.cancel();
-            reject(new Error(`Upload timed out for ${file.name} after 120 seconds. Please check your connection.`));
-          }, 120000);
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('upload_preset', uploadPreset);
 
-          uploadTask.on('state_changed', 
-            (snapshot) => {
-              const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-              console.log(`Upload is ${progress}% done for ${file.name}`);
-            }, 
-            (error) => {
-              clearTimeout(timeoutId);
-              reject(error);
-            }, 
-            async () => {
-              clearTimeout(timeoutId);
-              const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-              resolve(downloadURL);
-            }
-          );
-        });
+        const response = await fetch(
+          `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+          {
+            method: 'POST',
+            body: formData,
+          }
+        );
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error?.message || 'Cloudinary upload failed');
+        }
+
+        const result = await response.json();
+        return result.secure_url;
       });
 
       const imageUrls = await Promise.all(uploadPromises);
@@ -756,20 +758,10 @@ export default function App() {
       await addDoc(collection(db, 'posts'), newPost);
     } catch (error: any) {
       console.error("Post creation failed:", error);
-      
-      let errorMessage = "An unexpected error occurred.";
-      if (error.message?.includes('timed out')) {
-        errorMessage = error.message;
-      } else if (error.code === 'storage/unauthorized') {
-        errorMessage = "Permission denied. Please ensure you have applied the Storage Rules in the Firebase Console.";
-      } else if (error.code === 'storage/retry-limit-exceeded') {
-        errorMessage = "The upload failed due to poor connection. Please try again.";
-      } else if (error.code === 'storage/canceled') {
-        errorMessage = "Upload was canceled or timed out.";
-      }
-      
-      alert(errorMessage);
+      alert(error.message || "An error occurred during upload.");
       throw error;
+    } finally {
+      setLoading(false);
     }
   };
 
