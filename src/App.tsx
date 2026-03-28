@@ -226,6 +226,7 @@ const PostCard = ({ post, onReact, onComment, isAdmin, onVerify, onReject }: {
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [comments, setComments] = useState<Comment[]>([]);
+  const [imageError, setImageError] = useState(false);
 
   useEffect(() => {
     if (!showComments) return;
@@ -250,13 +251,21 @@ const PostCard = ({ post, onReact, onComment, isAdmin, onVerify, onReject }: {
       animate={{ opacity: 1, y: 0 }}
       className="bg-white rounded-3xl overflow-hidden border border-slate-100 shadow-sm hover:shadow-xl transition-all group"
     >
-      <div className="relative aspect-[16/10] overflow-hidden">
+      <div className="relative aspect-[16/10] overflow-hidden bg-slate-100">
         <img 
-          src={(Array.isArray(post.images) && post.images.length > 0) ? post.images[0] : ''} 
+          src={(!imageError && Array.isArray(post.images) && post.images.length > 0) 
+            ? post.images[0] 
+            : `https://picsum.photos/seed/${encodeURIComponent(post.title || 'travel')}/800/500`} 
           alt={post.title} 
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
           referrerPolicy="no-referrer"
+          onError={() => setImageError(true)}
         />
+        {imageError && (
+          <div className="absolute top-2 right-2 px-2 py-1 bg-black/40 backdrop-blur-sm text-[8px] text-white font-bold rounded uppercase tracking-widest">
+            Vibe Placeholder
+          </div>
+        )}
         <div className="absolute top-4 left-4 flex gap-2">
           {post.status === 'verified' ? (
             <span className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/90 backdrop-blur-md text-white text-xs font-bold rounded-full">
