@@ -74,8 +74,8 @@ service cloud.firestore {
              data.authorId is string &&
              data.authorName is string &&
              data.title is string && data.title.size() < 200 &&
-             data.content is string && data.content.size() < 10000 &&
-             data.status in ['pending', 'verified', 'rejected'] &&
+             data.content is string && data.content.size() < 20000 &&
+             data.status in ['pending', 'verified', 'rejected', 'deleted'] &&
              data.timestamp is timestamp &&
              data.reactions is map &&
              data.commentsCount is number;
@@ -103,14 +103,16 @@ service cloud.firestore {
       allow create: if isAuthenticated() && isValidPost(request.resource.data) && request.resource.data.authorId == request.auth.uid && request.resource.data.status == 'pending';
       allow update: if isAuthenticated() && 
         (
-          // Author can update their own pending post
-          (resource.data.authorId == request.auth.uid && resource.data.status == 'pending' && isValidPost(request.resource.data) && request.resource.data.status == 'pending') ||
+          // Author can update their own post (resets to pending)
+          (resource.data.authorId == request.auth.uid && isValidPost(request.resource.data) && (request.resource.data.status == 'pending' || request.resource.data.status == 'deleted')) ||
           // Admin can verify/reject
           (isAdmin() && isValidPost(request.resource.data)) ||
           // Anyone can react (atomic update)
-          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions']))
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions'])) ||
+          // Anyone can add comment (atomic update)
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['commentsCount']))
         );
-      allow delete: if isAdmin() || (resource.data.authorId == request.auth.uid && resource.data.status == 'pending');
+      allow delete: if isAdmin() || resource.data.authorId == request.auth.uid;
 
       match /comments/{commentId} {
         allow read: if isAuthenticated();
