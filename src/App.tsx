@@ -47,7 +47,9 @@ import {
   Menu,
   X,
   Upload,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Pencil,
+  Trash2
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
@@ -234,6 +236,7 @@ const PostCard = ({ post, onReact, onComment, isAdmin, onVerify, onReject, onEdi
   const [imageError, setImageError] = useState(false);
 
   const isOwner = currentUserId === post.authorId;
+  const canManage = isOwner || isAdmin;
 
   useEffect(() => {
     if (!showComments) return;
@@ -335,19 +338,21 @@ const PostCard = ({ post, onReact, onComment, isAdmin, onVerify, onReject, onEdi
           )}
         </div>
         
-        {isOwner && (
-          <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        {canManage && (
+          <div className="absolute top-4 right-4 flex gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity z-20">
             <button 
               onClick={(e) => { e.stopPropagation(); onEdit?.(post); }}
-              className="p-2 bg-white/90 backdrop-blur-md text-slate-700 rounded-full hover:bg-white transition-colors shadow-sm"
+              className="p-2.5 bg-white/95 backdrop-blur-md text-slate-700 rounded-full hover:bg-white transition-all shadow-lg border border-slate-100"
+              title="Edit Story"
             >
-              <PlusCircle className="w-4 h-4 rotate-45" /> {/* Using PlusCircle as a makeshift edit icon since I don't see Edit in imports */}
+              <Pencil className="w-4 h-4" />
             </button>
             <button 
               onClick={(e) => { e.stopPropagation(); onDelete?.(post.id); }}
-              className="p-2 bg-rose-500/90 backdrop-blur-md text-white rounded-full hover:bg-rose-600 transition-colors shadow-sm"
+              className="p-2.5 bg-rose-500/95 backdrop-blur-md text-white rounded-full hover:bg-rose-600 transition-all shadow-lg border border-rose-400/20"
+              title="Delete Story"
             >
-              <X className="w-4 h-4" />
+              <Trash2 className="w-4 h-4" />
             </button>
           </div>
         )}
@@ -497,7 +502,7 @@ const StoryDetail = ({ post, onClose }: { post: TravelPost, onClose: () => void 
       >
         <button 
           onClick={onClose}
-          className="absolute top-6 right-6 z-20 p-2 bg-white/80 backdrop-blur-md rounded-full text-slate-900 hover:bg-white transition-all shadow-lg"
+          className="absolute top-4 right-4 md:top-6 md:right-6 z-30 p-2.5 bg-white/90 backdrop-blur-md rounded-full text-slate-900 hover:bg-white transition-all shadow-xl border border-slate-100"
         >
           <X className="w-6 h-6" />
         </button>
@@ -1058,18 +1063,21 @@ export default function App() {
   };
 
   const handleDeletePost = async (postId: string) => {
-    if (!window.confirm("Are you sure you want to delete this story?")) return;
+    if (!window.confirm("Are you sure you want to delete this story? This action cannot be undone.")) return;
     try {
-      // In a real app, we might want to delete comments too, but for now just the post
       const postRef = doc(db, 'posts', postId);
       const postSnap = await getDoc(postRef);
-      if (postSnap.exists() && postSnap.data().authorId === user?.uid) {
-        await updateDoc(postRef, { status: 'rejected' }); // Or actually delete: await deleteDoc(postRef);
-        // For WanderLog, let's actually delete it if the user wants
-        // But for safety in this demo, let's just mark it as rejected/hidden
-        // Actually, user requested "right to delete", so let's use a hidden status or delete
-        // Let's use a 'deleted' status to keep history but hide it
+      if (!postSnap.exists()) return;
+
+      const isAdmin = profile?.role === 'admin';
+      const isOwner = postSnap.data().authorId === user?.uid;
+
+      if (isOwner || isAdmin) {
+        // We use a 'deleted' status to hide it from the feed while keeping the record
+        // The security rules allow this update for owners and admins
         await updateDoc(postRef, { status: 'deleted' });
+      } else {
+        alert("You do not have permission to delete this story.");
       }
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `posts/${postId}`);
