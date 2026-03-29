@@ -302,15 +302,18 @@ const PostCard = ({ post, onReact, onComment, isAdmin, onVerify, onReject, onEdi
         <img 
           src={(!imageError && post.introImage) 
             ? post.introImage 
-            : `https://picsum.photos/seed/${encodeURIComponent(post.title || 'travel')}/800/500`} 
+            : `https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&q=80&w=800&h=500`} 
           alt={post.title} 
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
           referrerPolicy="no-referrer"
           onError={() => setImageError(true)}
         />
         {imageError && (
-          <div className="absolute top-2 right-2 px-2 py-1 bg-black/40 backdrop-blur-sm text-[8px] text-white font-bold rounded uppercase tracking-widest">
-            Vibe Placeholder
+          <div className="absolute inset-0 flex items-center justify-center bg-slate-100">
+            <div className="text-center p-4">
+              <ImageIcon className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Image Unavailable</p>
+            </div>
           </div>
         )}
         <div className="absolute top-4 left-4 flex gap-2">
@@ -499,14 +502,14 @@ const StoryDetail = ({ post, onClose }: { post: TravelPost, onClose: () => void 
           <X className="w-6 h-6" />
         </button>
 
-        <div className="h-[40vh] relative flex-shrink-0">
+        <div className="h-[40vh] relative flex-shrink-0 bg-slate-100">
           <img 
-            src={post.introImage || `https://picsum.photos/seed/${encodeURIComponent(post.title)}/1200/800`} 
+            src={post.introImage || `https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&q=80&w=1200&h=800`} 
             alt={post.title} 
             className="w-full h-full object-cover"
             referrerPolicy="no-referrer"
             onError={(e) => {
-              (e.target as HTMLImageElement).src = `https://picsum.photos/seed/${encodeURIComponent(post.title)}/1200/800`;
+              (e.target as HTMLImageElement).src = `https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&q=80&w=1200&h=800`;
             }}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
@@ -547,7 +550,7 @@ const StoryDetail = ({ post, onClose }: { post: TravelPost, onClose: () => void 
                       className="w-full h-full object-cover"
                       referrerPolicy="no-referrer"
                       onError={(e) => {
-                        (e.target as HTMLImageElement).src = `https://picsum.photos/seed/${encodeURIComponent(post.title + i)}/800/600`;
+                        (e.target as HTMLImageElement).src = `https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&q=80&w=800&h=600`;
                       }}
                     />
                   </div>
@@ -566,7 +569,7 @@ const StoryDetail = ({ post, onClose }: { post: TravelPost, onClose: () => void 
                       className="w-full h-full object-cover"
                       referrerPolicy="no-referrer"
                       onError={(e) => {
-                        (e.target as HTMLImageElement).src = `https://picsum.photos/seed/${encodeURIComponent(post.title + 'extra' + i)}/800/600`;
+                        (e.target as HTMLImageElement).src = `https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&q=80&w=800&h=600`;
                       }}
                     />
                   </div>
@@ -973,7 +976,16 @@ export default function App() {
         formData.append('file', introFile);
         formData.append('upload_preset', uploadPreset);
         const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method: 'POST', body: formData });
+        
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(`Cloudinary Intro Image Upload Failed: ${errorData.error?.message || res.statusText}`);
+        }
+        
         const result = await res.json();
+        if (!result.secure_url) {
+          throw new Error("Cloudinary response missing secure_url for intro image");
+        }
         introImageUrl = result.secure_url;
       }
 
@@ -985,7 +997,16 @@ export default function App() {
           formData.append('file', file);
           formData.append('upload_preset', uploadPreset);
           const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method: 'POST', body: formData });
+          
+          if (!res.ok) {
+            const errorData = await res.json();
+            throw new Error(`Cloudinary Other Image Upload Failed: ${errorData.error?.message || res.statusText}`);
+          }
+          
           const result = await res.json();
+          if (!result.secure_url) {
+            throw new Error("Cloudinary response missing secure_url for other image");
+          }
           return result.secure_url;
         });
         const newUrls = await Promise.all(uploadPromises);
