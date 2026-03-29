@@ -276,9 +276,26 @@ const PostCard = ({ post, onReact, onComment, isAdmin, onVerify, onReject, onEdi
   return (
     <motion.div 
       layout
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-3xl overflow-hidden border border-slate-100 shadow-sm hover:shadow-xl transition-all group cursor-pointer"
+      initial={{ opacity: 0, y: 20, scale: 0.95 }}
+      animate={{ 
+        opacity: 1, 
+        y: [0, -4, 0],
+        scale: 1,
+        transition: {
+          y: {
+            duration: 4,
+            repeat: Infinity,
+            ease: "easeInOut",
+            delay: Math.random() * 2
+          }
+        }
+      }}
+      whileHover={{ 
+        y: -12, 
+        scale: 1.02,
+        transition: { duration: 0.3, ease: "easeOut" }
+      }}
+      className="bg-white rounded-3xl overflow-hidden border border-slate-100 shadow-sm hover:shadow-2xl transition-all group cursor-pointer relative z-10"
       onClick={() => onOpenDetail(post)}
     >
       <div className="relative aspect-[16/10] overflow-hidden bg-slate-100">
@@ -471,23 +488,26 @@ const StoryDetail = ({ post, onClose }: { post: TravelPost, onClose: () => void 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md overflow-y-auto">
       <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-white w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden my-8 relative"
+        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        className="bg-white w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden my-8 relative flex flex-col max-h-[90vh]"
       >
         <button 
           onClick={onClose}
-          className="absolute top-6 right-6 z-10 p-2 bg-white/80 backdrop-blur-md rounded-full text-slate-900 hover:bg-white transition-all shadow-lg"
+          className="absolute top-6 right-6 z-20 p-2 bg-white/80 backdrop-blur-md rounded-full text-slate-900 hover:bg-white transition-all shadow-lg"
         >
           <X className="w-6 h-6" />
         </button>
 
-        <div className="h-[40vh] relative">
+        <div className="h-[40vh] relative flex-shrink-0">
           <img 
-            src={post.introImage} 
+            src={post.introImage || `https://picsum.photos/seed/${encodeURIComponent(post.title)}/1200/800`} 
             alt={post.title} 
             className="w-full h-full object-cover"
             referrerPolicy="no-referrer"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = `https://picsum.photos/seed/${encodeURIComponent(post.title)}/1200/800`;
+            }}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
           <div className="absolute bottom-8 left-8 right-8">
@@ -499,11 +519,11 @@ const StoryDetail = ({ post, onClose }: { post: TravelPost, onClose: () => void 
           </div>
         </div>
 
-        <div className="p-8 md:p-12 space-y-8 max-h-[50vh] overflow-y-auto custom-scrollbar">
+        <div className="p-8 md:p-12 space-y-8 overflow-y-auto custom-scrollbar flex-1">
           <div className="flex items-center justify-between border-b border-slate-100 pb-6">
             <div className="flex items-center gap-4">
               <img 
-                src={post.authorPhoto || ''} 
+                src={post.authorPhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${post.authorId}`} 
                 alt="" 
                 className="w-12 h-12 rounded-full border-2 border-slate-100" 
                 referrerPolicy="no-referrer"
@@ -520,12 +540,15 @@ const StoryDetail = ({ post, onClose }: { post: TravelPost, onClose: () => void 
               <React.Fragment key={i}>
                 <p className="text-lg text-slate-700 leading-relaxed">{p}</p>
                 {otherImages[i] && (
-                  <div className="my-8 rounded-2xl overflow-hidden shadow-lg">
+                  <div className="my-8 rounded-2xl overflow-hidden shadow-lg aspect-video bg-slate-100">
                     <img 
                       src={otherImages[i]} 
                       alt={`Story image ${i + 1}`} 
-                      className="w-full h-auto object-cover"
+                      className="w-full h-full object-cover"
                       referrerPolicy="no-referrer"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = `https://picsum.photos/seed/${encodeURIComponent(post.title + i)}/800/600`;
+                      }}
                     />
                   </div>
                 )}
@@ -536,12 +559,15 @@ const StoryDetail = ({ post, onClose }: { post: TravelPost, onClose: () => void 
             {otherImages.length > paragraphs.length && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
                 {otherImages.slice(paragraphs.length).map((img, i) => (
-                  <div key={i} className="rounded-2xl overflow-hidden shadow-md aspect-video">
+                  <div key={i} className="rounded-2xl overflow-hidden shadow-md aspect-video bg-slate-100">
                     <img 
                       src={img} 
                       alt={`Additional image ${i + 1}`} 
                       className="w-full h-full object-cover"
                       referrerPolicy="no-referrer"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = `https://picsum.photos/seed/${encodeURIComponent(post.title + 'extra' + i)}/800/600`;
+                      }}
                     />
                   </div>
                 ))}
@@ -655,14 +681,44 @@ const PostForm = ({ onClose, onPost, editingPost }: {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-700 uppercase tracking-wide">Location</label>
-              <input 
-                required
-                value={formData.location}
-                onChange={e => setFormData({...formData, location: e.target.value})}
-                placeholder="e.g. Oia, Greece"
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all"
-              />
+              <label className="text-sm font-bold text-slate-700 uppercase tracking-wide flex items-center justify-between">
+                Location
+                {formData.location && (
+                  <a 
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(formData.location)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[10px] text-emerald-600 hover:underline flex items-center gap-1"
+                  >
+                    <MapPin className="w-3 h-3" /> Preview on Map
+                  </a>
+                )}
+              </label>
+              <div className="relative">
+                <input 
+                  required
+                  value={formData.location}
+                  onChange={e => setFormData({...formData, location: e.target.value})}
+                  placeholder="e.g. Oia, Greece"
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all"
+                />
+                <MapPin className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 w-5 h-5" />
+              </div>
+              {formData.location && (
+                <div className="mt-2 rounded-xl overflow-hidden h-32 border border-slate-100 bg-slate-50 relative group">
+                  <iframe
+                    width="100%"
+                    height="100%"
+                    frameBorder="0"
+                    scrolling="no"
+                    marginHeight={0}
+                    marginWidth={0}
+                    src={`https://maps.google.com/maps?q=${encodeURIComponent(formData.location)}&t=&z=13&ie=UTF8&iwloc=&output=embed`}
+                    className="grayscale contrast-125 opacity-70 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500"
+                  />
+                  <div className="absolute inset-0 pointer-events-none border-2 border-transparent group-hover:border-emerald-500/20 transition-all rounded-xl" />
+                </div>
+              )}
             </div>
           </div>
 
@@ -778,7 +834,7 @@ export default function App() {
   const [editingPost, setEditingPost] = useState<TravelPost | null>(null);
   const [selectedPost, setSelectedPost] = useState<TravelPost | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'verified' | 'pending'>('verified');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'verified' | 'pending' | 'mine'>('verified');
 
   // Auth Listener
   useEffect(() => {
@@ -1078,6 +1134,10 @@ export default function App() {
       
       if (!canSee) return false;
 
+      if (filterStatus === 'mine') {
+        return matchesSearch && p.authorId === user?.uid;
+      }
+
       if (filterStatus === 'all') return matchesSearch;
       
       // If filtering by 'pending', only show pending posts (already restricted by canSee)
@@ -1166,19 +1226,20 @@ export default function App() {
                 />
               </div>
               
-              <div className="flex items-center gap-2 p-1.5 bg-slate-100 rounded-2xl">
-                {(['verified', 'pending', 'all'] as const).map((status) => (
+              <div className="flex items-center gap-2 p-1.5 bg-slate-100 rounded-2xl overflow-x-auto no-scrollbar">
+                {(['verified', 'pending', 'mine', 'all'] as const).map((status) => (
                   <button
                     key={status}
                     onClick={() => setFilterStatus(status)}
                     className={cn(
-                      "px-5 py-2.5 rounded-xl text-sm font-bold capitalize transition-all",
+                      "px-5 py-2.5 rounded-xl text-sm font-bold capitalize transition-all whitespace-nowrap",
                       filterStatus === status 
                         ? "bg-white text-slate-900 shadow-sm" 
                         : "text-slate-500 hover:text-slate-700"
                     )}
                   >
-                    {status === 'pending' && profile?.role !== 'admin' ? 'My Pending' : status}
+                    {status === 'pending' && profile?.role !== 'admin' ? 'My Pending' : 
+                     status === 'mine' ? 'My Stories' : status}
                   </button>
                 ))}
               </div>
