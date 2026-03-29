@@ -55,6 +55,7 @@ import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import imageCompression from 'browser-image-compression';
 
 // --- Utility ---
 function cn(...inputs: ClassValue[]) {
@@ -650,10 +651,36 @@ const PostForm = ({ onClose, onPost, editingPost }: {
     }
     setLoading(true);
     try {
-      await onPost(formData, introFile, otherFiles);
+      // Compression options
+      const options = {
+        maxSizeMB: 1,
+        maxWidthOrHeight: 1920,
+        useWebWorker: true,
+      };
+
+      console.log("Starting image compression...");
+      
+      // Compress intro image if new
+      let finalIntroFile = introFile;
+      if (introFile) {
+        finalIntroFile = await imageCompression(introFile, options);
+        console.log(`Intro image compressed: ${(introFile.size / 1024 / 1024).toFixed(2)}MB -> ${(finalIntroFile.size / 1024 / 1024).toFixed(2)}MB`);
+      }
+
+      // Compress other images
+      const finalOtherFiles = await Promise.all(
+        otherFiles.map(async (file) => {
+          const compressed = await imageCompression(file, options);
+          console.log(`Gallery image compressed: ${(file.size / 1024 / 1024).toFixed(2)}MB -> ${(compressed.size / 1024 / 1024).toFixed(2)}MB`);
+          return compressed;
+        })
+      );
+
+      await onPost(formData, finalIntroFile, finalOtherFiles);
       onClose();
     } catch (err) {
-      console.error(err);
+      console.error("Compression or upload error:", err);
+      alert("Something went wrong while processing your images. Please try with smaller files or fewer images.");
     } finally {
       setLoading(false);
     }
@@ -820,9 +847,14 @@ const PostForm = ({ onClose, onPost, editingPost }: {
             <button 
               disabled={loading}
               type="submit"
-              className="w-full py-4 bg-emerald-600 text-white rounded-xl font-bold text-lg hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100 disabled:opacity-50"
+              className="w-full py-4 bg-emerald-600 text-white rounded-xl font-bold text-lg hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100 disabled:opacity-50 flex items-center justify-center gap-2"
             >
-              {loading ? 'Processing...' : (editingPost ? 'Update Story' : 'Submit for Verification')}
+              {loading ? (
+                <>
+                  <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full" />
+                  Optimizing & Uploading...
+                </>
+              ) : (editingPost ? 'Update Story' : 'Submit for Verification')}
             </button>
           </div>
         </form>
