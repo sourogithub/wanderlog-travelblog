@@ -374,10 +374,16 @@ const PostCard = ({ post, onReact, onComment, isAdmin, onVerify, onReject, onEdi
       <div className="p-6 space-y-4">
         <div className="flex justify-between items-start">
           <div className="space-y-1">
-            <div className="flex items-center gap-1.5 text-emerald-600 text-xs font-bold uppercase tracking-wider">
+            <a 
+              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(post.location.name)}`}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-1.5 text-emerald-600 text-xs font-bold uppercase tracking-wider hover:underline"
+              onClick={(e) => e.stopPropagation()}
+            >
               <MapPin className="w-3.5 h-3.5" />
               {post.location.name}
-            </div>
+            </a>
             <h3 className="text-xl font-bold text-slate-900 leading-tight">{post.title}</h3>
           </div>
           <div className="text-right">
@@ -518,17 +524,22 @@ const StoryDetail = ({ post, onClose }: { post: TravelPost, onClose: () => void 
               (e.target as HTMLImageElement).src = `https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&q=80&w=1200&h=800`;
             }}
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-          <div className="absolute bottom-8 left-8 right-8">
-            <div className="flex items-center gap-2 text-emerald-400 text-sm font-bold uppercase tracking-widest mb-2">
-              <MapPin className="w-4 h-4" />
-              {post.location.name}
-            </div>
-            <h1 className="text-4xl md:text-5xl font-extrabold text-white tracking-tight">{post.title}</h1>
-          </div>
         </div>
 
         <div className="p-8 md:p-12 space-y-8 overflow-y-auto custom-scrollbar flex-1">
+          <div className="space-y-4">
+            <a 
+              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(post.location.name)}`}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-2 text-emerald-600 text-sm font-bold uppercase tracking-widest hover:underline"
+            >
+              <MapPin className="w-4 h-4" />
+              {post.location.name}
+            </a>
+            <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight">{post.title}</h1>
+          </div>
+
           <div className="flex items-center justify-between border-b border-slate-100 pb-6">
             <div className="flex items-center gap-4">
               <img 
